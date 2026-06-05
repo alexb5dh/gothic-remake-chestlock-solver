@@ -383,13 +383,34 @@ function render(res){
   for(let j=0;j<nc;j++)ph.push(`<th>${pre}${j+1}</th>`);
   let rows=`<tr class="start-state"><td class="lab">${d.start}</td><td>—</td>`+res.start.map(v=>`<td>${v}</td>`).join('')+`</tr>`;
   steps.forEach((s,i)=>{
-    const dir=s.dir===0?d.RIGHT:d.LEFT; const cls=s.dir===0?'dir-P':'dir-L';
+    const dir=s.dir===0?d.LEFT:d.RIGHT; const cls=s.dir===0?'dir-P':'dir-L';
     rows+=`<tr><td class="lab">${i+1}</td><td><span class="k">${d.cassette} ${s.c+1}</span> → <span class="${cls}">${dir}</span></td>`+
       s.state.map(v=>`<td>${v}</td>`).join('')+`</tr>`;
   });
+  const groups=[];
+  for(const s of steps){
+    const last=groups[groups.length-1];
+    if(last && last.c===s.c && last.dir===s.dir) last.count++;
+    else groups.push({c:s.c, dir:s.dir, count:1});
+  }
+
+  // build key sequence: W/S to navigate levers, A=left, D=right
+  let curLever=0;
+  const keys=[];
+  for(const g of groups){
+    const diff=g.c-curLever;
+    if(diff>0) for(let i=0;i<diff;i++) keys.push('W');
+    else if(diff<0) for(let i=0;i<-diff;i++) keys.push('S');
+    curLever=g.c;
+    const k=g.dir===0?'A':'D';
+    for(let i=0;i<g.count;i++) keys.push(k);
+  }
+  const keySeq=keys.join(', ');
+
   out.innerHTML=
     `<div class="status ok">${d.ok_found(steps.length)}</div>`+
     (steps.length>1000?`<div class="status bad">${d.warn_big}</div>`:'')+
+    `<div class="card" style="margin-top:0"><h2 style="font-size:16px;margin-bottom:8px">KEY SEQUENCE <button onclick="navigator.clipboard.writeText('${keySeq}').then(()=>{this.textContent='COPIED';setTimeout(()=>this.textContent='COPY',1200)})" style="font-family:var(--mono);font-size:11px;background:var(--panel2);color:var(--brass);border:1px solid var(--line);border-radius:6px;padding:4px 12px;cursor:pointer;margin-left:10px;vertical-align:middle">COPY</button></h2><div style="font-size:14px;word-break:break-all;line-height:1.8;color:var(--ink)">${keySeq}</div></div>`+
     `<div class="tablebox"><table class="seq"><thead><tr><th>#</th><th>${d.th_move}</th>${ph.join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
