@@ -1,7 +1,7 @@
-<!-- Zamek sprzezony / Coupled lock - solver (PL/EN) -->
+<!-- Coupled lock solver - PL / EN / SIMPLE (Gothic Remake) -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SKRZYNKI SOLVER</title>
+<title>Combination Lock Solver</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -37,24 +37,18 @@
              padding:2px 4px;white-space:nowrap;vertical-align:bottom}
   .matrix th.colh{height:auto;text-align:center}
   .matrix .rowlab{color:var(--brass2);font-size:12px;white-space:nowrap;padding-right:12px;text-align:right}
-  input{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+  input,select{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
         color:var(--ink);border-radius:7px;text-align:center;font-size:15px;outline:none;
         transition:border-color .15s,box-shadow .15s}
-  input:focus{border-color:var(--brass);box-shadow:0 0 0 2px rgba(216,162,74,.18)}
+  input:focus,select:focus{border-color:var(--brass);box-shadow:0 0 0 2px rgba(216,162,74,.18)}
   .cell{width:46px;height:36px}
   .cell.diag{background:var(--diag);border-color:#3c4554}
   .cell.neg{color:var(--red)} .cell.pos{color:var(--green)}
+  .selcell{width:108px;height:38px;font-size:12px;font-weight:700;text-align:center;cursor:pointer}
+  .selcell.same{color:var(--green)} .selcell.opp{color:var(--red)} .selcell.none{color:var(--dim)}
+  .selcell:disabled{opacity:.7;cursor:not-allowed;background:var(--diag)}
   .pin{width:54px;height:40px;font-weight:700}
   .small{width:64px;height:40px;font-weight:700}
-  .sliderrow{display:flex;align-items:center;gap:14px}
-  input[type=range]{-webkit-appearance:none;appearance:none;height:6px;width:220px;
-        background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:0;cursor:pointer}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-        background:linear-gradient(180deg,var(--brass2),var(--brass));border:none;cursor:pointer;
-        box-shadow:0 2px 6px rgba(0,0,0,.4)}
-  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;border:none;
-        background:var(--brass);cursor:pointer}
-  .ncbadge{font-family:var(--disp);font-size:30px;color:var(--brass2);min-width:34px;text-align:center;line-height:1}
   .inline{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end}
   .field{display:flex;flex-direction:column;gap:6px}
   .field label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
@@ -95,8 +89,9 @@
       <div class="sub" id="t-sub"></div>
     </div>
     <div class="lang">
-      <button id="lang-pl" class="active" onclick="setLang('pl')">PL</button>
-      <button id="lang-en" onclick="setLang('en')">EN</button>
+      <button id="b-pl" onclick="setMode('adv','pl')">PL</button>
+      <button id="b-en" onclick="setMode('adv','en')">EN</button>
+      <button id="b-simple" onclick="setMode('simple','en')">SIMPLE</button>
     </div>
   </div>
 
@@ -154,7 +149,6 @@ const I18N={
     s4:'STARTOWY PIN KAŻDEJ KASETY',
     s5:'OTWARCIE NA PINIE', tgtlabel:'docelowy pin (wszystkie kasety)',
     go:'OBLICZ KOMBINACJĘ', solving:'LICZĘ…',
-    confirm_big:'Masz '+'%n%'+' kaset — obliczenia mogą trwać bardzo długo i przeglądarka może na chwilę zawisnąć.\n\nKontynuować?',
     rowlab:n=>'RUCH KASETA '+n+' →', colh:n=>'KASETA '+n, startlab:n=>'KASETA '+n,
     th_move:'Ruch', start:'START', cassette:'KASETA', RIGHT:'PRAWO', LEFT:'LEWO',
     err_range:'Przedział błędny: min musi być mniejsze od max.',
@@ -165,7 +159,7 @@ const I18N={
     ok_none:'Wszystkie kasety już są na docelowym pinie — otwarte bez ruchu.',
     ok_found:n=>'✔ Znaleziono kombinację — <b>'+n+'</b> ruchów (minimum).',
     warn_big:'⚠ Ponad 1000 ruchów — raczej coś jest nie tak z danymi (sprawdź macierz, przedział lub pin otwarcia).',
-    confirm_slow:'9 kaset to bardzo duża przestrzeń — liczenie może potrwać długo i przeglądarka może na chwilę zamarznąć. Najlepiej najpierw zwęzić przedział pinów. Kontynuować?'
+    confirm_slow:'9+ kaset to bardzo duża przestrzeń — liczenie może potrwać długo i przeglądarka może na chwilę zamarznąć. Najlepiej najpierw zwęzić przedział pinów. Kontynuować?'
   },
   en:{
     title:'Opening Combination Solver',
@@ -189,15 +183,28 @@ const I18N={
     ok_none:'All cassettes are already on the target pin — open with no moves.',
     ok_found:n=>'✔ Combination found — <b>'+n+'</b> moves (minimum).',
     warn_big:'⚠ Over 1000 moves — something is probably wrong with the data (check the matrix, range or target pin).',
-    confirm_slow:'9 cassettes is a very large space — solving may take a long time and the browser might freeze briefly. It is best to narrow the pin range first. Continue?'
+    confirm_slow:'9+ cassettes is a very large space — solving may take a long time and the browser might freeze briefly. It is best to narrow the pin range first. Continue?'
   }
 };
-let LANG='pl';
-const T=()=>I18N[LANG];
+// simple mode overrides (English, Gothic Remake friendly)
+const SIMPLE={
+  title:'Combination Lock Solver',
+  sub:'Gothic Remake — coupled lever lock helper. Set how each lever pulls the others, then solve.',
+  s2:'LEVER COUPLINGS',
+  legend:'<b>How it works:</b> each row = the lever you turn. Each cell = how it affects that lever:<br><span class="pos">SAME</span> = pulled the same way (+1) &nbsp;·&nbsp; <span class="neg">OPPOSITE</span> = pulled the opposite way (−1) &nbsp;·&nbsp; NONE = no effect.<br>The diagonal is always SAME — every lever moves itself.',
+  s1:'NUMBER OF LEVERS', nclabel:'levers',
+  nchint:'A lever moves along positions (pins). There are as many rows/columns as levers. Changing this rebuilds the table.',
+  s4:'STARTING POSITION OF EACH LEVER',
+  s5:'OPEN AT POSITION', tgtlabel:'target position (all levers)',
+  rowlab:n=>'LEVER '+n+' →', colh:n=>'LEVER '+n, startlab:n=>'LEVER '+n,
+  cassette:'LEVER'
+};
+
+let LANG='en', mode='simple';
+function T(){ return (mode==='simple') ? Object.assign({},I18N.en,SIMPLE) : I18N[LANG]; }
 
 function applyLang(){
   const d=T();
-  document.documentElement.lang=LANG;
   document.getElementById('t-title').textContent=d.title;
   document.getElementById('t-sub').textContent=d.sub;
   document.getElementById('t-s1').textContent=d.s1;
@@ -213,11 +220,20 @@ function applyLang(){
   document.getElementById('t-s5').textContent=d.s5;
   document.getElementById('t-tgtlabel').textContent=d.tgtlabel;
   document.getElementById('go').textContent=d.go;
-  document.getElementById('lang-pl').classList.toggle('active',LANG==='pl');
-  document.getElementById('lang-en').classList.toggle('active',LANG==='en');
+  document.getElementById('b-pl').classList.toggle('active',mode==='adv'&&LANG==='pl');
+  document.getElementById('b-en').classList.toggle('active',mode==='adv'&&LANG==='en');
+  document.getElementById('b-simple').classList.toggle('active',mode==='simple');
   buildMatrix(); buildStart(); render(lastRes);
 }
-function setLang(l){LANG=l; applyLang();}
+function setMode(m,l){
+  mode=m; LANG=l;
+  if(mode==='simple'){ // coerce matrix to NONE/SAME/OPPOSITE and lock diagonal to SAME
+    for(let i=0;i<nc;i++)for(let j=0;j<nc;j++){
+      if(i===j) M[i][j]=1; else M[i][j]=(M[i][j]>0?1:(M[i][j]<0?-1:0));
+    }
+  }
+  applyLang();
+}
 
 // ---------------- model ----------------
 const DEF_M=[
@@ -235,6 +251,7 @@ let startVec = DEF_START.slice();
 let lastRes=null;
 
 function color(inp){const v=parseFloat(inp.value);inp.classList.toggle('neg',v<0);inp.classList.toggle('pos',v>0);}
+function selClass(sel,v){sel.classList.remove('same','opp','none');sel.classList.add(v>0?'same':(v<0?'opp':'none'));}
 
 function buildMatrix(){
   const d=T();
@@ -249,9 +266,22 @@ function buildMatrix(){
     tr.appendChild(lab);
     for(let j=0;j<nc;j++){
       const td=document.createElement('td');
-      const inp=document.createElement('input'); inp.className='cell'+(i===j?' diag':''); inp.value=M[i][j];
-      inp.addEventListener('input',()=>{M[i][j]=parseInt(inp.value||'0',10)||0; color(inp);});
-      color(inp); td.appendChild(inp); tr.appendChild(td);
+      if(mode==='simple'){
+        const sel=document.createElement('select'); sel.className='selcell';
+        [['NONE',0],['SAME',1],['OPPOSITE',-1]].forEach(([txt,val])=>{
+          const o=document.createElement('option'); o.value=val; o.textContent=txt; sel.appendChild(o);
+        });
+        sel.value=String(M[i][j]>0?1:(M[i][j]<0?-1:0));
+        selClass(sel,parseInt(sel.value,10));
+        if(i===j){ sel.value='1'; M[i][j]=1; sel.disabled=true; selClass(sel,1); }
+        else sel.addEventListener('change',()=>{M[i][j]=parseInt(sel.value,10); selClass(sel,M[i][j]);});
+        td.appendChild(sel);
+      } else {
+        const inp=document.createElement('input'); inp.className='cell'+(i===j?' diag':''); inp.value=M[i][j];
+        inp.addEventListener('input',()=>{M[i][j]=parseInt(inp.value||'0',10)||0; color(inp);});
+        color(inp); td.appendChild(inp);
+      }
+      tr.appendChild(td);
     }
     t.appendChild(tr);
   }
@@ -276,6 +306,7 @@ function resize(){
   const mid=parseInt(document.getElementById('lo').value,10)||1;
   const NS=[]; for(let j=0;j<newNc;j++)NS.push(startVec[j]!==undefined?startVec[j]:mid);
   nc=newNc; M=NM; startVec=NS;
+  if(mode==='simple')for(let i=0;i<nc;i++)M[i][i]=1;
   buildMatrix(); buildStart();
 }
 document.getElementById('nc').addEventListener('change',resize);
@@ -334,7 +365,8 @@ function render(res){
   if(res.err){out.innerHTML=`<div class="status bad">⚠ ${res.err}</div>`;return;}
   const steps=res.steps;
   if(steps.length===0){out.innerHTML=`<div class="status ok">${d.ok_none}</div>`;return;}
-  const ph=[]; for(let j=0;j<nc;j++)ph.push(`<th>K${j+1}</th>`);
+  const ph=[]; const pre=(mode==='simple')?'L':'K';
+  for(let j=0;j<nc;j++)ph.push(`<th>${pre}${j+1}</th>`);
   let rows=`<tr class="start-state"><td class="lab">${d.start}</td><td>—</td>`+res.start.map(v=>`<td>${v}</td>`).join('')+`</tr>`;
   steps.forEach((s,i)=>{
     const dir=s.dir===0?d.RIGHT:d.LEFT; const cls=s.dir===0?'dir-P':'dir-L';
@@ -348,7 +380,7 @@ function render(res){
 }
 
 document.getElementById('go').addEventListener('click',()=>{
-  if(nc>=9 && !confirm(T().confirm_slow)) return;
+  if(nc>8 && !confirm(T().confirm_slow)) return;
   const b=document.getElementById('go'); b.textContent=T().solving;
   setTimeout(()=>{lastRes=solve(); render(lastRes); b.textContent=T().go;},20);
 });
