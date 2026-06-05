@@ -35,18 +35,26 @@
   .matrix{border-collapse:separate;border-spacing:4px}
   .matrix th{color:var(--dim);font-weight:500;font-size:11px;letter-spacing:.4px;
              padding:2px 4px;white-space:nowrap;vertical-align:bottom}
-  .matrix th.colh{height:auto;text-align:center}
+  .matrix th.colh{height:auto;text-align:center;width:64px;font-size:10px}
   .matrix .rowlab{color:var(--brass2);font-size:12px;white-space:nowrap;padding-right:12px;text-align:right}
   input,select{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
         color:var(--ink);border-radius:7px;text-align:center;font-size:15px;outline:none;
         transition:border-color .15s,box-shadow .15s}
   input:focus,select:focus{border-color:var(--brass);box-shadow:0 0 0 2px rgba(216,162,74,.18)}
-  .cell{width:46px;height:36px}
+  .cell{width:44px;height:44px}
   .cell.diag{background:var(--diag);border-color:#3c4554}
   .cell.neg{color:var(--red)} .cell.pos{color:var(--green)}
-  .selcell{width:108px;height:38px;font-size:12px;font-weight:700;text-align:center;cursor:pointer}
-  .selcell.same{color:var(--green)} .selcell.opp{color:var(--red)} .selcell.none{color:var(--dim)}
-  .selcell:disabled{opacity:.7;cursor:not-allowed;background:var(--diag)}
+  .sqcell{width:64px;height:64px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+        cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.3px;
+        display:flex;align-items:center;justify-content:center;color:var(--dim);user-select:none;
+        transition:border-color .12s,transform .06s}
+  .sqcell:hover{border-color:var(--brass)}
+  .sqcell:active{transform:scale(.94)}
+  .sqcell.same{color:var(--green);border-color:rgba(95,185,138,.5)}
+  .sqcell.opp{color:var(--red);border-color:rgba(224,113,106,.5)}
+  .sqcell.none{color:var(--dim)}
+  .sqcell.locked{background:var(--diag);cursor:not-allowed;opacity:.9}
+  .sqcell.locked:hover{border-color:#3c4554}
   .pin{width:54px;height:40px;font-weight:700}
   .small{width:64px;height:40px;font-weight:700}
   .inline{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end}
@@ -191,7 +199,7 @@ const SIMPLE={
   title:'Combination Lock Solver',
   sub:'Gothic Remake — coupled lever lock helper. Set how each lever pulls the others, then solve.',
   s2:'LEVER COUPLINGS',
-  legend:'<b>How it works:</b> each row = the lever you turn. Each cell = how it affects that lever:<br><span class="pos">SAME</span> = pulled the same way (+1) &nbsp;·&nbsp; <span class="neg">OPPOSITE</span> = pulled the opposite way (−1) &nbsp;·&nbsp; NONE = no effect.<br>The diagonal is always SAME — every lever moves itself.',
+  legend:'<b>How it works:</b> each row = the lever you turn. Click a cell to cycle how it affects that lever:<br><span class="pos">SAME</span> = pulled the same way (+1) &nbsp;·&nbsp; <span class="neg">OPPOSITE</span> = pulled the opposite way (−1) &nbsp;·&nbsp; NONE = no effect.<br>The diagonal is locked to SAME — every lever moves itself.',
   s1:'NUMBER OF LEVERS', nclabel:'levers',
   nchint:'A lever moves along positions (pins). There are as many rows/columns as levers. Changing this rebuilds the table.',
   s4:'STARTING POSITION OF EACH LEVER',
@@ -238,7 +246,7 @@ function setMode(m,l){
 // ---------------- model ----------------
 const DEF_M=[
  [1,0,0,0,0,0],
- [0,1,0,-1,0,0],
+ [0,1,0,1,0,0],
  [0,-1,1,-1,-1,0],
  [0,0,0,1,-1,0],
  [1,-1,0,-1,1,0],
@@ -267,15 +275,21 @@ function buildMatrix(){
     for(let j=0;j<nc;j++){
       const td=document.createElement('td');
       if(mode==='simple'){
-        const sel=document.createElement('select'); sel.className='selcell';
-        [['NONE',0],['SAME',1],['OPPOSITE',-1]].forEach(([txt,val])=>{
-          const o=document.createElement('option'); o.value=val; o.textContent=txt; sel.appendChild(o);
-        });
-        sel.value=String(M[i][j]>0?1:(M[i][j]<0?-1:0));
-        selClass(sel,parseInt(sel.value,10));
-        if(i===j){ sel.value='1'; M[i][j]=1; sel.disabled=true; selClass(sel,1); }
-        else sel.addEventListener('change',()=>{M[i][j]=parseInt(sel.value,10); selClass(sel,M[i][j]);});
-        td.appendChild(sel);
+        const cell=document.createElement('div'); cell.className='sqcell';
+        const setCell=v=>{
+          cell.textContent = v>0?'SAME':(v<0?'OPPOSITE':'NONE');
+          cell.classList.remove('same','opp','none');
+          cell.classList.add(v>0?'same':(v<0?'opp':'none'));
+        };
+        if(i===j){ M[i][j]=1; setCell(1); cell.classList.add('locked'); }
+        else{
+          setCell(M[i][j]);
+          cell.addEventListener('click',()=>{
+            const cur=M[i][j]; const next = cur===0?1:(cur>0?-1:0); // NONE -> SAME -> OPPOSITE -> NONE
+            M[i][j]=next; setCell(next);
+          });
+        }
+        td.appendChild(cell);
       } else {
         const inp=document.createElement('input'); inp.className='cell'+(i===j?' diag':''); inp.value=M[i][j];
         inp.addEventListener('input',()=>{M[i][j]=parseInt(inp.value||'0',10)||0; color(inp);});
