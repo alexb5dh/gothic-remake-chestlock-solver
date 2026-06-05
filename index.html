@@ -1,4 +1,4 @@
-<!-- Zamek sprzezony - solver kombinacji otwarcia (macierz kwadratowa kaset) -->
+<!-- Zamek sprzezony / Coupled lock - solver (PL/EN) -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Solver kombinacji — zamek sprzężony</title>
@@ -18,9 +18,14 @@
       var(--bg);
     color:var(--ink);font-family:var(--mono);padding:28px 18px 80px;line-height:1.5}
   .wrap{max-width:960px;margin:0 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
   h1{font-family:var(--disp);font-weight:400;font-size:clamp(34px,6vw,56px);
      letter-spacing:2px;margin:0 0 2px;color:var(--brass2)}
   .sub{color:var(--dim);font-size:13px;margin-bottom:26px;letter-spacing:.3px}
+  .lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:8px}
+  .lang button{font-family:var(--mono);background:var(--panel);color:var(--dim);border:none;
+        padding:7px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.5px}
+  .lang button.active{background:var(--brass);color:#1a1408}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
         padding:18px 18px 20px;margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
   .card h2{font-family:var(--disp);font-weight:400;font-size:22px;letter-spacing:1.5px;
@@ -60,9 +65,6 @@
   .status{font-size:15px;padding:14px 16px;border-radius:10px;margin-bottom:16px}
   .status.ok{background:rgba(95,185,138,.12);border:1px solid rgba(95,185,138,.4);color:var(--green)}
   .status.bad{background:rgba(224,113,106,.12);border:1px solid rgba(224,113,106,.4);color:var(--red)}
-  .summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
-  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:13px}
-  .chip b{color:var(--brass2)}
   .seq{width:100%;border-collapse:collapse;font-size:13px}
   .seq th{position:sticky;top:0;background:var(--panel2);color:var(--dim);font-weight:500;
           text-transform:uppercase;font-size:11px;letter-spacing:.5px;padding:9px 8px;
@@ -78,76 +80,160 @@
 </style>
 
 <div class="wrap">
-  <h1>Solver kombinacji otwarcia</h1>
-  <div class="sub">Zamek sprzężony — kwadratowa macierz sprzężeń kaset, piny = pozycje (1–7) → najkrótsza kombinacja otwarcia</div>
-
-  <div class="card">
-    <h2><span class="n">1</span>LICZBA KASET</h2>
-    <div class="inline">
-      <div class="field"><label>liczba kaset (suwaków)</label><input id="nc" class="small" value="6"></div>
-      <div class="hint" style="margin:0;max-width:440px">Kaseta to suwak; pin to pozycja na skali (1–7), na której kaseta stoi. Kaset jest tyle co wierszy/kolumn macierzy, więc jest ona kwadratowa. Zmiana przebudowuje tabelę.</div>
+  <div class="topbar">
+    <div>
+      <h1 id="t-title"></h1>
+      <div class="sub" id="t-sub"></div>
+    </div>
+    <div class="lang">
+      <button id="lang-pl" class="active" onclick="setLang('pl')">PL</button>
+      <button id="lang-en" onclick="setLang('en')">EN</button>
     </div>
   </div>
 
   <div class="card">
-    <h2><span class="n">2</span>MACIERZ SPRZĘŻEŃ</h2>
+    <h2><span class="n">1</span><span id="t-s1"></span></h2>
+    <div class="inline">
+      <div class="field"><label id="t-nclabel"></label><input id="nc" class="small" value="6"></div>
+      <div class="hint" id="t-nchint" style="margin:0;max-width:440px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">2</span><span id="t-s2"></span></h2>
     <div class="scrollx"><table class="matrix"><tbody id="mtable"></tbody></table></div>
-    <div class="hint"><b>Legenda:</b> wiersz = którą kasetę ruszasz w prawo. Kolumna = na którą kasetę to wpływa i jak zmienia jej pin:<br>
-      <span class="pos">+1</span> = ruch w prawo (pin + 1) &nbsp;·&nbsp; <span class="neg">−1</span> = ruch w lewo (pin − 1) &nbsp;·&nbsp; 0 = brak wpływu.<br>
-      Przekątna (podświetlona) = ruch własny kasety, zwykle +1.</div>
+    <div class="hint" id="t-legend"></div>
   </div>
 
   <div class="card">
-    <h2><span class="n">3</span>PRZEDZIAŁ PINÓW (ŚCIANY)</h2>
+    <h2><span class="n">3</span><span id="t-s3"></span></h2>
     <div class="inline">
-      <div class="field"><label>pin min</label><input id="lo" class="pin" value="1"></div>
-      <div class="field"><label>pin max</label><input id="hi" class="pin" value="7"></div>
-      <div class="hint" style="margin:0">Żadna kaseta nie może zejść poniżej pinu min ani powyżej pinu max.</div>
+      <div class="field"><label id="t-lolabel"></label><input id="lo" class="pin" value="1"></div>
+      <div class="field"><label id="t-hilabel"></label><input id="hi" class="pin" value="7"></div>
+      <div class="hint" id="t-rangehint" style="margin:0"></div>
     </div>
   </div>
 
   <div class="card">
-    <h2><span class="n">4</span>STARTOWY PIN KAŻDEJ KASETY</h2>
+    <h2><span class="n">4</span><span id="t-s4"></span></h2>
     <div class="pins-row" id="startrow"></div>
   </div>
 
   <div class="card">
-    <h2><span class="n">5</span>OTWARCIE NA PINIE</h2>
+    <h2><span class="n">5</span><span id="t-s5"></span></h2>
     <div class="inline">
-      <div class="field"><label>docelowy pin (wszystkie kasety)</label><input id="target" class="pin" value="4"></div>
+      <div class="field"><label id="t-tgtlabel"></label><input id="target" class="pin" value="4"></div>
     </div>
   </div>
 
-  <div style="text-align:center"><button id="go">OBLICZ KOMBINACJĘ</button></div>
+  <div style="text-align:center"><button id="go"></button></div>
   <div id="out"></div>
 </div>
 
 <script>
+// ---------------- i18n ----------------
+const I18N={
+  pl:{
+    title:'Solver kombinacji otwarcia',
+    sub:'Zamek sprzężony — kwadratowa macierz sprzężeń kaset, piny = pozycje → najkrótsza kombinacja otwarcia',
+    s1:'LICZBA KASET', nclabel:'liczba kaset (suwaków)',
+    nchint:'Kaseta to suwak; pin to pozycja na skali, na której kaseta stoi. Kaset jest tyle co wierszy/kolumn macierzy, więc jest ona kwadratowa. Zmiana przebudowuje tabelę.',
+    s2:'MACIERZ SPRZĘŻEŃ',
+    legend:'<b>Legenda:</b> wiersz = którą kasetę ruszasz w prawo. Kolumna = na którą kasetę to wpływa i jak zmienia jej pin:<br><span class="pos">+1</span> = ruch w prawo (pin + 1) &nbsp;·&nbsp; <span class="neg">−1</span> = ruch w lewo (pin − 1) &nbsp;·&nbsp; 0 = brak wpływu.<br>Przekątna (podświetlona) = ruch własny kasety, zwykle +1.',
+    s3:'PRZEDZIAŁ PINÓW (ŚCIANY)', lolabel:'pin min', hilabel:'pin max',
+    rangehint:'Żadna kaseta nie może zejść poniżej pinu min ani powyżej pinu max.',
+    s4:'STARTOWY PIN KAŻDEJ KASETY',
+    s5:'OTWARCIE NA PINIE', tgtlabel:'docelowy pin (wszystkie kasety)',
+    go:'OBLICZ KOMBINACJĘ', solving:'LICZĘ…',
+    rowlab:n=>'RUCH KASETA '+n+' →', colh:n=>'KASETA '+n, startlab:n=>'KASETA '+n,
+    th_move:'Ruch', start:'START', cassette:'KASETA', RIGHT:'PRAWO', LEFT:'LEWO',
+    err_range:'Przedział błędny: min musi być mniejsze od max.',
+    err_tgt:(t,lo,hi)=>'Docelowy pin ('+t+') jest poza przedziałem pinów '+lo+'–'+hi+'.',
+    err_start:'Któraś kaseta startuje na pinie poza przedziałem.',
+    err_space:s=>'Za duża przestrzeń stanów ('+s+'). Zmniejsz przedział lub liczbę kaset.',
+    err_nosol:t=>'Brak rozwiązania — nie da się ustawić wszystkich kaset na pinie '+t+' w tym przedziale.',
+    ok_none:'Wszystkie kasety już są na docelowym pinie — otwarte bez ruchu.',
+    ok_found:n=>'✔ Znaleziono kombinację — <b>'+n+'</b> ruchów (minimum).',
+    warn_big:'⚠ Ponad 1000 ruchów — raczej coś jest nie tak z danymi (sprawdź macierz, przedział lub pin otwarcia).'
+  },
+  en:{
+    title:'Opening Combination Solver',
+    sub:'Coupled lock — square cassette coupling matrix, pins = positions → shortest opening combination',
+    s1:'NUMBER OF CASSETTES', nclabel:'cassettes (sliders)',
+    nchint:'A cassette is a slider; a pin is the position on the scale where the cassette sits. There are as many cassettes as matrix rows/columns, so the matrix is square. Changing this rebuilds the table.',
+    s2:'COUPLING MATRIX',
+    legend:'<b>Legend:</b> row = which cassette you move right. Column = which cassette it affects and how its pin changes:<br><span class="pos">+1</span> = move right (pin + 1) &nbsp;·&nbsp; <span class="neg">−1</span> = move left (pin − 1) &nbsp;·&nbsp; 0 = no effect.<br>Diagonal (highlighted) = the cassette\'s own move, usually +1.',
+    s3:'PIN RANGE (WALLS)', lolabel:'pin min', hilabel:'pin max',
+    rangehint:'No cassette may go below pin min or above pin max.',
+    s4:'STARTING PIN OF EACH CASSETTE',
+    s5:'OPEN AT PIN', tgtlabel:'target pin (all cassettes)',
+    go:'SOLVE COMBINATION', solving:'SOLVING…',
+    rowlab:n=>'MOVE CASSETTE '+n+' →', colh:n=>'CASSETTE '+n, startlab:n=>'CASSETTE '+n,
+    th_move:'Move', start:'START', cassette:'CASSETTE', RIGHT:'RIGHT', LEFT:'LEFT',
+    err_range:'Invalid range: min must be less than max.',
+    err_tgt:(t,lo,hi)=>'Target pin ('+t+') is outside the pin range '+lo+'–'+hi+'.',
+    err_start:'One of the cassettes starts on a pin outside the range.',
+    err_space:s=>'State space too large ('+s+'). Reduce the range or number of cassettes.',
+    err_nosol:t=>'No solution — cannot set all cassettes to pin '+t+' within this range.',
+    ok_none:'All cassettes are already on the target pin — open with no moves.',
+    ok_found:n=>'✔ Combination found — <b>'+n+'</b> moves (minimum).',
+    warn_big:'⚠ Over 1000 moves — something is probably wrong with the data (check the matrix, range or target pin).'
+  }
+};
+let LANG='pl';
+const T=()=>I18N[LANG];
+
+function applyLang(){
+  const d=T();
+  document.documentElement.lang=LANG;
+  document.getElementById('t-title').textContent=d.title;
+  document.getElementById('t-sub').textContent=d.sub;
+  document.getElementById('t-s1').textContent=d.s1;
+  document.getElementById('t-nclabel').textContent=d.nclabel;
+  document.getElementById('t-nchint').textContent=d.nchint;
+  document.getElementById('t-s2').textContent=d.s2;
+  document.getElementById('t-legend').innerHTML=d.legend;
+  document.getElementById('t-s3').textContent=d.s3;
+  document.getElementById('t-lolabel').textContent=d.lolabel;
+  document.getElementById('t-hilabel').textContent=d.hilabel;
+  document.getElementById('t-rangehint').textContent=d.rangehint;
+  document.getElementById('t-s4').textContent=d.s4;
+  document.getElementById('t-s5').textContent=d.s5;
+  document.getElementById('t-tgtlabel').textContent=d.tgtlabel;
+  document.getElementById('go').textContent=d.go;
+  document.getElementById('lang-pl').classList.toggle('active',LANG==='pl');
+  document.getElementById('lang-en').classList.toggle('active',LANG==='en');
+  buildMatrix(); buildStart(); render(lastRes);
+}
+function setLang(l){LANG=l; applyLang();}
+
+// ---------------- model ----------------
 const DEF_M=[
  [1,0,0,0,0,0],
- [0,1,0,-1,0,0],
+ [0,1,0,1,0,0],
  [0,-1,1,-1,-1,0],
  [0,0,0,1,-1,0],
  [1,-1,0,-1,1,0],
  [0,0,0,-1,0,1],
 ];
 const DEF_START=[2,3,4,6,6,7];
-
 let nc=6;
 let M = DEF_M.map(r=>r.slice());
 let startVec = DEF_START.slice();
+let lastRes=null;
 
 function color(inp){const v=parseFloat(inp.value);inp.classList.toggle('neg',v<0);inp.classList.toggle('pos',v>0);}
 
 function buildMatrix(){
+  const d=T();
   const t=document.getElementById('mtable'); t.innerHTML='';
   const hr=document.createElement('tr');
-  const corner=document.createElement('th'); corner.textContent=''; hr.appendChild(corner);
-  for(let j=0;j<nc;j++){const th=document.createElement('th');th.className='colh';th.textContent='KASETA '+(j+1);hr.appendChild(th);}
+  hr.appendChild(document.createElement('th'));
+  for(let j=0;j<nc;j++){const th=document.createElement('th');th.className='colh';th.textContent=d.colh(j+1);hr.appendChild(th);}
   t.appendChild(hr);
   for(let i=0;i<nc;i++){
     const tr=document.createElement('tr');
-    const lab=document.createElement('td'); lab.className='rowlab'; lab.textContent='RUCH KASETA '+(i+1)+' →';
+    const lab=document.createElement('td'); lab.className='rowlab'; lab.textContent=d.rowlab(i+1);
     tr.appendChild(lab);
     for(let j=0;j<nc;j++){
       const td=document.createElement('td');
@@ -159,10 +245,11 @@ function buildMatrix(){
   }
 }
 function buildStart(){
+  const d=T();
   const sr=document.getElementById('startrow'); sr.innerHTML='';
   for(let j=0;j<nc;j++){
     const w=document.createElement('div'); w.className='pinwrap';
-    const s=document.createElement('span'); s.textContent='KASETA '+(j+1);
+    const s=document.createElement('span'); s.textContent=d.startlab(j+1);
     const inp=document.createElement('input'); inp.className='pin'; inp.value=startVec[j];
     inp.addEventListener('input',()=>{startVec[j]=parseInt(inp.value||'0',10)||0;});
     w.appendChild(s); w.appendChild(inp); sr.appendChild(w);
@@ -181,13 +268,15 @@ function resize(){
 }
 document.getElementById('nc').addEventListener('change',resize);
 
+// ---------------- solver ----------------
 function solve(){
+  const d=T();
   const lo=parseInt(document.getElementById('lo').value,10);
   const hi=parseInt(document.getElementById('hi').value,10);
   const tgt=parseInt(document.getElementById('target').value,10);
-  if(!(lo<hi)) return {err:'Przedział błędny: min musi być mniejsze od max.'};
-  if(tgt<lo||tgt>hi) return {err:'Docelowy pin ('+tgt+') jest poza przedziałem pinów '+lo+'–'+hi+'.'};
-  for(const v of startVec){if(v<lo||v>hi)return{err:'Któraś kaseta startuje na pinie poza przedziałem.'};}
+  if(!(lo<hi)) return {err:d.err_range};
+  if(tgt<lo||tgt>hi) return {err:d.err_tgt(tgt,lo,hi)};
+  for(const v of startVec){if(v<lo||v>hi)return{err:d.err_start};}
 
   const start=startVec.slice();
   const target=Array(nc).fill(tgt);
@@ -201,7 +290,7 @@ function solve(){
   const q=[start]; let head=0, explored=0, found=false;
   while(head<q.length){
     const st=q[head++]; explored++;
-    if(explored>CAP) return {err:'Za duża przestrzeń stanów ('+space.toLocaleString('pl')+'). Zmniejsz przedział lub liczbę kaset.'};
+    if(explored>CAP) return {err:d.err_space(space.toLocaleString(LANG))};
     for(let c=0;c<nc && !found;c++){
       for(let dir=0;dir<2;dir++){
         const sign=dir===0?1:-1;
@@ -217,7 +306,7 @@ function solve(){
     }
     if(found)break;
   }
-  if(!prev.has(targetK)) return {err:'Brak rozwiązania — nie da się ustawić wszystkich kaset na pinie '+tgt+' w tym przedziale.'};
+  if(!prev.has(targetK)) return {err:d.err_nosol(tgt)};
   const path=[]; let cur=targetK;
   while(prev.get(cur)!==null){const p=prev.get(cur);path.push(p);cur=p.from;}
   path.reverse();
@@ -227,27 +316,31 @@ function solve(){
 }
 
 function render(res){
+  const d=T();
   const out=document.getElementById('out');
+  if(!res){out.innerHTML='';return;}
   if(res.err){out.innerHTML=`<div class="status bad">⚠ ${res.err}</div>`;return;}
   const steps=res.steps;
-  if(steps.length===0){out.innerHTML=`<div class="status ok">Wszystkie kasety już są na docelowym pinie — otwarte bez ruchu.</div>`;return;}
+  if(steps.length===0){out.innerHTML=`<div class="status ok">${d.ok_none}</div>`;return;}
   const ph=[]; for(let j=0;j<nc;j++)ph.push(`<th>K${j+1}</th>`);
-  let rows=`<tr class="start-state"><td class="lab">START</td><td>—</td>`+res.start.map(v=>`<td>${v}</td>`).join('')+`</tr>`;
+  let rows=`<tr class="start-state"><td class="lab">${d.start}</td><td>—</td>`+res.start.map(v=>`<td>${v}</td>`).join('')+`</tr>`;
   steps.forEach((s,i)=>{
-    const dir=s.dir===0?'PRAWO':'LEWO'; const cls=s.dir===0?'dir-P':'dir-L';
-    rows+=`<tr><td class="lab">${i+1}</td><td><span class="k">KASETA ${s.c+1}</span> → <span class="${cls}">${dir}</span></td>`+
+    const dir=s.dir===0?d.RIGHT:d.LEFT; const cls=s.dir===0?'dir-P':'dir-L';
+    rows+=`<tr><td class="lab">${i+1}</td><td><span class="k">${d.cassette} ${s.c+1}</span> → <span class="${cls}">${dir}</span></td>`+
       s.state.map(v=>`<td>${v}</td>`).join('')+`</tr>`;
   });
   out.innerHTML=
-    `<div class="status ok">✔ Znaleziono kombinację — <b>${steps.length}</b> ruchów (minimum).</div>`+
-    (steps.length>1000?`<div class="status bad">⚠ Ponad 1000 ruchów — raczej coś jest nie tak z danymi (sprawdź macierz, przedział lub pin otwarcia).</div>`:'')+
-    `<div class="tablebox"><table class="seq"><thead><tr><th>#</th><th>Ruch</th>${ph.join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    `<div class="status ok">${d.ok_found(steps.length)}</div>`+
+    (steps.length>1000?`<div class="status bad">${d.warn_big}</div>`:'')+
+    `<div class="tablebox"><table class="seq"><thead><tr><th>#</th><th>${d.th_move}</th>${ph.join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 document.getElementById('go').addEventListener('click',()=>{
-  const b=document.getElementById('go'); b.textContent='LICZĘ…';
-  setTimeout(()=>{render(solve()); b.textContent='OBLICZ KOMBINACJĘ';},20);
+  const b=document.getElementById('go'); b.textContent=T().solving;
+  setTimeout(()=>{lastRes=solve(); render(lastRes); b.textContent=T().go;},20);
 });
 
-buildMatrix(); buildStart(); render(solve());
+// init
+lastRes=solve();
+applyLang();
 </script>
