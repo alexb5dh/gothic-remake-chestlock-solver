@@ -46,6 +46,15 @@
   .cell.neg{color:var(--red)} .cell.pos{color:var(--green)}
   .pin{width:54px;height:40px;font-weight:700}
   .small{width:64px;height:40px;font-weight:700}
+  .sliderrow{display:flex;align-items:center;gap:14px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:6px;width:220px;
+        background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:0;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+        background:linear-gradient(180deg,var(--brass2),var(--brass));border:none;cursor:pointer;
+        box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;border:none;
+        background:var(--brass);cursor:pointer}
+  .ncbadge{font-family:var(--disp);font-size:30px;color:var(--brass2);min-width:34px;text-align:center;line-height:1}
   .inline{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end}
   .field{display:flex;flex-direction:column;gap:6px}
   .field label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
@@ -145,6 +154,7 @@ const I18N={
     s4:'STARTOWY PIN KAŻDEJ KASETY',
     s5:'OTWARCIE NA PINIE', tgtlabel:'docelowy pin (wszystkie kasety)',
     go:'OBLICZ KOMBINACJĘ', solving:'LICZĘ…',
+    confirm_big:'Masz '+'%n%'+' kaset — obliczenia mogą trwać bardzo długo i przeglądarka może na chwilę zawisnąć.\n\nKontynuować?',
     rowlab:n=>'RUCH KASETA '+n+' →', colh:n=>'KASETA '+n, startlab:n=>'KASETA '+n,
     th_move:'Ruch', start:'START', cassette:'KASETA', RIGHT:'PRAWO', LEFT:'LEWO',
     err_range:'Przedział błędny: min musi być mniejsze od max.',
@@ -154,7 +164,8 @@ const I18N={
     err_nosol:t=>'Brak rozwiązania — nie da się ustawić wszystkich kaset na pinie '+t+' w tym przedziale.',
     ok_none:'Wszystkie kasety już są na docelowym pinie — otwarte bez ruchu.',
     ok_found:n=>'✔ Znaleziono kombinację — <b>'+n+'</b> ruchów (minimum).',
-    warn_big:'⚠ Ponad 1000 ruchów — raczej coś jest nie tak z danymi (sprawdź macierz, przedział lub pin otwarcia).'
+    warn_big:'⚠ Ponad 1000 ruchów — raczej coś jest nie tak z danymi (sprawdź macierz, przedział lub pin otwarcia).',
+    confirm_slow:'9 kaset to bardzo duża przestrzeń — liczenie może potrwać długo i przeglądarka może na chwilę zamarznąć. Najlepiej najpierw zwęzić przedział pinów. Kontynuować?'
   },
   en:{
     title:'Opening Combination Solver',
@@ -177,7 +188,8 @@ const I18N={
     err_nosol:t=>'No solution — cannot set all cassettes to pin '+t+' within this range.',
     ok_none:'All cassettes are already on the target pin — open with no moves.',
     ok_found:n=>'✔ Combination found — <b>'+n+'</b> moves (minimum).',
-    warn_big:'⚠ Over 1000 moves — something is probably wrong with the data (check the matrix, range or target pin).'
+    warn_big:'⚠ Over 1000 moves — something is probably wrong with the data (check the matrix, range or target pin).',
+    confirm_slow:'9 cassettes is a very large space — solving may take a long time and the browser might freeze briefly. It is best to narrow the pin range first. Continue?'
   }
 };
 let LANG='pl';
@@ -210,7 +222,7 @@ function setLang(l){LANG=l; applyLang();}
 // ---------------- model ----------------
 const DEF_M=[
  [1,0,0,0,0,0],
- [0,1,0,1,0,0],
+ [0,1,0,-1,0,0],
  [0,-1,1,-1,-1,0],
  [0,0,0,1,-1,0],
  [1,-1,0,-1,1,0],
@@ -256,7 +268,7 @@ function buildStart(){
   }
 }
 function resize(){
-  const newNc=Math.max(1,Math.min(12,parseInt(document.getElementById('nc').value,10)||1));
+  const newNc=Math.max(2,Math.min(12,parseInt(document.getElementById('nc').value,10)||2));
   const NM=[];
   for(let i=0;i<newNc;i++){NM.push([]);for(let j=0;j<newNc;j++){
     NM[i].push((M[i]&&M[i][j]!==undefined)?M[i][j]:(i===j?1:0));
@@ -285,7 +297,7 @@ function solve(){
   if(startK===targetK) return {steps:[],start};
 
   const space=Math.pow(hi-lo+1,nc);
-  const CAP=5000000;
+  const CAP=12000000;
   const prev=new Map(); prev.set(startK,null);
   const q=[start]; let head=0, explored=0, found=false;
   while(head<q.length){
@@ -336,6 +348,7 @@ function render(res){
 }
 
 document.getElementById('go').addEventListener('click',()=>{
+  if(nc>=9 && !confirm(T().confirm_slow)) return;
   const b=document.getElementById('go'); b.textContent=T().solving;
   setTimeout(()=>{lastRes=solve(); render(lastRes); b.textContent=T().go;},20);
 });
