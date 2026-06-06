@@ -22,7 +22,7 @@
   h1{font-family:var(--disp);font-weight:400;font-size:clamp(34px,6vw,56px);
      letter-spacing:2px;margin:0 0 2px;color:var(--brass2)}
   .sub{color:var(--dim);font-size:13px;margin-bottom:26px;letter-spacing:.3px}
-  .lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:8px}
+  .lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
   .lang button{font-family:var(--mono);background:var(--panel);color:var(--dim);border:none;
         padding:7px 14px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.5px}
   .lang button.active{background:var(--brass);color:#1a1408}
@@ -96,10 +96,13 @@
       <h1 id="t-title"></h1>
       <div class="sub" id="t-sub"></div>
     </div>
-    <div class="lang">
-      <button id="b-pl" onclick="setMode('adv','pl')">PL</button>
-      <button id="b-en" onclick="setMode('adv','en')">EN</button>
-      <button id="b-simple" onclick="setMode('simple','en')">SIMPLE</button>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+      <div class="lang">
+        <button id="b-pl" onclick="setMode('adv','pl')">PL</button>
+        <button id="b-en" onclick="setMode('adv','en')">EN</button>
+        <button id="b-simple" onclick="setMode('simple','en')">SIMPLE</button>
+      </div>
+      <button onclick="resetAll()" style="font-family:var(--mono);font-size:13px;background:var(--panel2);color:var(--dim);border:1px solid var(--line);border-radius:9px;padding:6px 14px;cursor:pointer;font-weight:700;letter-spacing:.5px;line-height:1">RESET</button>
     </div>
   </div>
 
@@ -419,6 +422,18 @@ document.getElementById('go').addEventListener('click',()=>{
   const b=document.getElementById('go'); b.textContent=T().solving;
   setTimeout(()=>{lastRes=solve(); render(lastRes); b.textContent=T().go;},20);
 });
+
+function resetAll(){
+  nc=6;
+  M=[];for(let i=0;i<nc;i++){M.push([]);for(let j=0;j<nc;j++)M[i].push(i===j?1:0);}
+  startVec=Array(nc).fill(4);
+  document.getElementById('nc').value=6;
+  document.getElementById('lo').value=1;
+  document.getElementById('hi').value=7;
+  document.getElementById('target').value=4;
+  lastRes=null;
+  buildMatrix();buildStart();render(lastRes);
+}
 
 // init
 lastRes=solve();
